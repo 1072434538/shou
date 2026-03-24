@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>受控章 - BJ YFS</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #e8e8e8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: sans-serif;
+    gap: 28px;
+    padding: 40px;
+  }
+  .panel {
+    background: white;
+    border-radius: 10px;
+    padding: 18px 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    font-size: 14px;
+    color: #333;
+  }
+  .panel label { font-weight: 600; }
+  .panel input[type="date"] {
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 14px;
+  }
+  .panel button {
+    background: #c0392b;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 7px 18px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .panel button:hover { background: #a93226; }
+  .panel button.sec { background: #555; }
+  .panel button.sec:hover { background: #333; }
+  .paper {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    padding: 60px 80px;
+  }
+  .hint {
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <label>日期：</label>
+  <input type="date" id="datePicker">
+  <button onclick="resetToday()">今天</button>
+  <button onclick="updateDate()">更新日期</button>
+  <button class="sec" onclick="downloadPNG()">📋 下载透明PNG（Excel用）</button>
+</div>
+
+<div class="paper">
+  <!-- 预览用canvas，显示尺寸260px -->
+  <canvas id="previewCanvas" width="520" height="520" style="width:260px;height:260px;"></canvas>
+</div>
+
+<div class="hint">
+  下载透明PNG后，Excel：插入 → 图片 → 选择文件<br>图章背景透明，不遮挡下方文字
+</div>
+
+<script>
+  const RED = '#c0392b';
+  let currentDate = '';
+
+  function todayString() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function formatForStamp(iso) {
+    const [y, m, d] = iso.split('-');
+    return `${y} - ${m} - ${d}`;
+  }
+
+  function resetToday() {
+    document.getElementById('datePicker').value = todayString();
+    updateDate();
+  }
+
+  function updateDate() {
+    const val = document.getElementById('datePicker').value || todayString();
+    currentDate = formatForStamp(val);
+    drawStamp(document.getElementById('previewCanvas'), 520);
+  }
+
+  // ── core draw function, works on any canvas size ──
+  function drawStamp(canvas, size) {
+    const ctx = canvas.getContext('2d');
+    const s = size / 260; // scale factor
+
+    ctx.clearRect(0, 0, size, size);
+
+    const cx = size / 2;
+    const cy = size / 2;
+    const r  = 118 * s;
+
+    // outer ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = RED;
+    ctx.lineWidth = 5 * s;
+    ctx.stroke();
+
+    // line Y positions (in original 260 coords → scaled)
+    const line1Y = 104 * s;
+    const line2Y = 158 * s;
+    const lineX1 = 12  * s;
+    const lineX2 = 248 * s;
+
+    ctx.strokeStyle = RED;
+    ctx.lineWidth = 3 * s;
+
+    ctx.beginPath();
+    ctx.moveTo(lineX1, line1Y);
+    ctx.lineTo(lineX2, line1Y);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(lineX1, line2Y);
+    ctx.lineTo(lineX2, line2Y);
+    ctx.stroke();
+
+    ctx.fillStyle = RED;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+
+    // Row 1: 受控章
+    ctx.font = `bold ${44 * s}px SimSun, STSong, serif`;
+    ctx.letterSpacing = `${8 * s}px`;
+    ctx.fillText('受控章', cx + 4*s, 86 * s);
+
+    // Row 2: date
+    ctx.font = `bold ${18 * s}px Arial, Helvetica, sans-serif`;
+    ctx.letterSpacing = `${2 * s}px`;
+    ctx.fillText(currentDate, cx + 1*s, 140 * s);
+
+    // Row 3: BJ YFS
+    ctx.font = `900 ${32 * s}px Arial Black, Arial, sans-serif`;
+    ctx.letterSpacing = `${8 * s}px`;
+    ctx.fillText('BJ YFS', cx + 4*s, 205 * s);
+
+    // reset
+    ctx.letterSpacing = '0px';
+  }
+
+  function downloadPNG() {
+    // draw at 4× (1040px) for high-res
+    const hiCanvas = document.createElement('canvas');
+    hiCanvas.width  = 1040;
+    hiCanvas.height = 1040;
+    drawStamp(hiCanvas, 1040);
+    hiCanvas.toBlob(function(blob) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'BJ_YFS_受控章_透明.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }, 'image/png');
+  }
+
+  resetToday();
+</script>
+</body>
+</html>
